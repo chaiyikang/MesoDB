@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# MesoDB
+
+A customized price tracker application where users can upload CSV data, view accumulated price information, and analyze price summaries for various items.
+
+## Features
+
+-   **CSV Upload:** Easily upload CSV files to populate or update your price data.
+-   **Interactive Tables:** Perform basic table operations such as searching, sorting, and filtering your item data.
+-   **Price Trend Visualization:** View historical price trends for individual items through interactive line graphs.
+-   **Summary View:** Get an overview of all tracked items with their latest prices and trends.
+
+## Tech Stack
+
+-   **Frontend:** Next.js (React) with TailwindCSS for styling.
+-   **Backend/Database:** Supabase (used for data storage and potentially authentication, though not fully implemented in this scope).
+-   **Language:** JavaScript
+-   **Package Manager:** npm
 
 ## Getting Started
 
-First, run the development server:
+Follow these steps to set up and run MesoDB locally on your machine.
+
+### Prerequisites
+
+Ensure you have Node.js (which includes npm) installed on your system.
+
+### Installation
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/chaiyikang/MesoDB.git
+    cd MesoDB
+    ```
+
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
+
+### Running the Development Server
+
+To start the application in development mode:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+### Building for Production
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+To build the application for production deployment:
 
-## Learn More
+```bash
+npm run build
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Running in Production Mode
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+After building, you can start the production server:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run start
+```
 
-## Deploy on Vercel
+### Linting
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+To check for code quality and style issues:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run lint
+```
+
+## Project Structure
+
+-   `src/app/`: Contains the main application source code, following Next.js App Router conventions.
+    -   `page.js`: The main landing page.
+    -   `layout.js`: The root layout for the application.
+    -   `components/`: Reusable React components (e.g., `Table.js`, `SummaryTable.js`).
+    -   `items/`: Dynamic routes for individual item pages (`[itemName]/page.js`).
+    -   `summary/`: Route for the overall summary page.
+    -   `utils/`: Utility functions, including `csvStorage.js` for local data handling.
+-   `public/`: Static assets like images and favicons.
+-   `next.config.js`: Next.js configuration.
+-   `tailwind.config.js`: Tailwind CSS configuration.
+-   `package.json`: Project metadata and dependencies.
+
+## Contributing
+
+Contributions are welcome! Please feel free to open issues or submit pull requests.
+
+## License
+
+This project is open-source and available under the [MIT License](LICENSE).
