@@ -49,15 +49,17 @@ const SummaryTable = ({
 					<input
 						type="text"
 						placeholder="Search items..."
-							defaultValue={searchTerm}
+						defaultValue={searchTerm}
 						onChange={handleSearch}
 						className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:border-blue-500"
 					/>
 					<div className="mt-2">
-						<label className="inline-flex items-center">
-							<input type="checkbox" className="form-checkbox" checked={showAll} onChange={() => setShowAll(!showAll)} />
-							<span className="ml-2 text-gray-300">Show All Entries</span>
-						</label>
+						<button
+							onClick={() => setShowAll(!showAll)}
+							className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+						>
+							{showAll ? "Paginate Entries" : "Show All Entries"}
+						</button>
 					</div>
 					<button
 						onClick={() => console.log(data.map(item => item.item))}
@@ -80,8 +82,8 @@ const SummaryTable = ({
 									</div>
 									<input
 										type="text"
-											placeholder={`Filter...`}
-											defaultValue={filters["Item"] || ""}
+										placeholder={`Filter...`}
+										defaultValue={filters["Item"] || ""}
 										onChange={e => handleFilterChange("Item", e.target.value)}
 										className="w-full p-1 mt-1 rounded bg-gray-600 text-white border border-gray-500 focus:outline-none focus:border-blue-500 text-sm normal-case"
 										onClick={e => e.stopPropagation()} // Prevent sort when clicking filter input
@@ -117,18 +119,12 @@ const SummaryTable = ({
 										</td>
 										<td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100">
 											<div className="w-24 h-8">
-												                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={item.chartData}>
-                            <YAxis domain={domain} hide={true} />
-                            <Line
-                              type="monotone"
-                              dataKey="price"
-                              stroke="#8884d8"
-                              strokeWidth={2}
-                              dot={false}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
+												<ResponsiveContainer width="100%" height="100%">
+													<LineChart data={item.chartData}>
+														<YAxis domain={domain} hide={true} />
+														<Line type="monotone" dataKey="price" stroke="#8884d8" strokeWidth={2} dot={false} />
+													</LineChart>
+												</ResponsiveContainer>
 											</div>
 										</td>
 										<td className="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100">
