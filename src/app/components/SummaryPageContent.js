@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useDebouncedCallback } from 'use-debounce';
 import { getCsvData } from "../utils/csvStorage";
 import SummaryTable from "../components/SummaryTable";
 
@@ -10,32 +11,26 @@ const SummaryPageContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [data, setData] = useState([]);
-
-  // Initialize state from URL parameters
-  const initialSearchTerm = searchParams.get('search') || '';
-  const initialSortColumn = searchParams.get('sortCol') || null;
-  const initialSortDirection = searchParams.get('sortDir') || 'asc';
-  const initialCurrentPage = parseInt(searchParams.get('page') || '1', 10);
-  const initialShowAll = searchParams.get('showAll') === 'true';
-  const initialFilters = useMemo(() => {
-    const filters = {};
+  // --- URL State ---
+  const sortColumn = searchParams.get('sortCol') || 'Item';
+  const sortDirection = searchParams.get('sortDir') || 'asc';
+  const currentPage = parseInt(searchParams.get('page') || '1', 10);
+  const showAll = searchParams.get('showAll') === 'true';
+  const searchTerm = searchParams.get('search') || '';
+  const filters = useMemo(() => {
+    const newFilters = {};
     for (const [key, value] of searchParams.entries()) {
       if (key.startsWith('filter_')) {
-        filters[key.replace('filter_', '')] = value;
+        newFilters[key.replace('filter_', '')] = value;
       }
     }
-    return filters;
+    return newFilters;
   }, [searchParams]);
 
-  const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
-  const [sortColumn, setSortColumn] = useState(initialSortColumn);
-  const [sortDirection, setSortDirection] = useState(initialSortDirection);
-  const [currentPage, setCurrentPage] = useState(initialCurrentPage);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [filters, setFilters] = useState(initialFilters);
-  const [showAll, setShowAll] = useState(initialShowAll);
+  // --- Component State ---
+  const [data, setData] = useState([]);
 
+  // --- Data Fetching and Processing ---
   useEffect(() => {
     const initialData = getCsvData();
     if (initialData.length > 0) {
@@ -43,51 +38,26 @@ const SummaryPageContent = () => {
     }
   }, []);
 
-  // Update URL parameters whenever state changes
-  useEffect(() => {
-    const newSearchParams = new URLSearchParams();
-    if (searchTerm) newSearchParams.set('search', searchTerm);
-    if (sortColumn) newSearchParams.set('sortCol', sortColumn);
-    if (sortDirection !== 'asc') newSearchParams.set('sortDir', sortDirection);
-    if (currentPage !== 1) newSearchParams.set('page', currentPage.toString());
-    if (showAll) newSearchParams.set('showAll', 'true');
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) newSearchParams.set(`filter_${key}`, value);
-    });
+  // --- Memoized Calculations ---
+  const itemsPerPage = 10;
 
-    const queryString = newSearchParams.toString();
-    router.replace(`/summary${queryString ? `?${queryString}` : ''}`);
-  }, [searchTerm, sortColumn, sortDirection, currentPage, showAll, filters, router]);
-
-  const handleSearch = useCallback((e) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1); // Reset to first page on search
-  }, []);
-
-  const handleSort = useCallback((column) => {
-    setSortColumn(prevCol => prevCol === column ? null : column);
-    setSortDirection(prevDir => (sortColumn === column ? (prevDir === "asc" ? "desc" : "asc") : "asc"));
-    setCurrentPage(1); // Reset to first page on sort
-  }, [sortColumn]);
-
-  const handleFilterChange = useCallback((column, value) => {
-    setFilters((prevFilters) => ({
-      ...prevFilters,
-      [column]: value,
-    }));
-    setCurrentPage(1); // Reset to first page on filter change
-  }, []);
-
-  const handlePageChange = useCallback((pageNumber) => {
-    setCurrentPage(pageNumber);
-  }, []);
-
-  const getTrend = (prices) => {
-    if (prices.length < 2) {
-      return 'neutral'; // Not enough data to determine trend
+  const calculateMedian = (prices) => {
+    if (prices.length === 0) return 0;
+    const sortedPrices = [...prices].sort((a, b) => a - b);
+    const mid = Math.floor(sortedPrices.length / 2);
+    if (sortedPrices.length % 2 === 0) {
+      return (sortedPrices[mid - 1] + sortedPrices[mid]) / 2;
+    } else {
+      return sortedPrices[mid];
     }
-    const latestPrice = prices[prices.length - 1];
-    const secondLastPrice = prices[prices.length - 2];
+  };
+
+  const getTrend = (chartData) => {
+    if (chartData.length < 2) {
+      return 'neutral';
+    }
+    const latestPrice = chartData[chartData.length - 1].price;
+    const secondLastPrice = chartData[chartData.length - 2].price;
 
     if (latestPrice > secondLastPrice) {
       return 'up';
@@ -98,14 +68,69 @@ const SummaryPageContent = () => {
     }
   };
 
-  const calculateAverage = (prices) => {
-    if (prices.length === 0) return 0;
-    const sum = prices.reduce((acc, price) => acc + parseFloat(price), 0);
-    return sum / prices.length;
-  };
+  // --- Event Handlers ---
+  const handleDebouncedUrlUpdate = useDebouncedCallback((updates) => {
+    const newSearchParams = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(updates)) {
+        if (value) {
+            newSearchParams.set(key, value);
+        } else {
+            newSearchParams.delete(key);
+        }
+    }
+    newSearchParams.delete('page');
+    router.replace(`/summary?${newSearchParams.toString()}`);
+  }, 500);
+
+  const handleImmediateUrlUpdate = useCallback((updates) => {
+    const newSearchParams = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(updates)) {
+        if (value) {
+            newSearchParams.set(key, value);
+        } else {
+            newSearchParams.delete(key);
+        }
+    }
+    newSearchParams.delete('page');
+    router.replace(`/summary?${newSearchParams.toString()}`);
+}, [router, searchParams]);
+
+  const handleSearch = useCallback((e) => {
+    handleDebouncedUrlUpdate({ search: e.target.value });
+  }, [handleDebouncedUrlUpdate]);
+
+  const handleSort = useCallback((column) => {
+    const currentSortColumn = searchParams.get('sortCol');
+    const currentSortDirection = searchParams.get('sortDir') || 'asc';
+    let newSortDirection = 'asc';
+    if (currentSortColumn === column) {
+      newSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+    }
+    handleImmediateUrlUpdate({ sortCol: column, sortDir: newSortDirection });
+  }, [searchParams, handleImmediateUrlUpdate]);
+
+  const handleFilterChange = useCallback((column, value) => {
+    handleDebouncedUrlUpdate({ [`filter_${column}`]: value });
+  }, [handleDebouncedUrlUpdate]);
+
+  const handlePageChange = useCallback((pageNumber) => {
+    const newSearchParams = new URLSearchParams(searchParams.toString());
+    newSearchParams.set('page', pageNumber.toString());
+    router.replace(`/summary?${newSearchParams.toString()}`);
+  }, [router, searchParams]);
+
+  const handleShowAll = useCallback((checked) => {
+    const newSearchParams = new URLSearchParams(searchParams.toString());
+    if (checked) {
+      newSearchParams.set('showAll', 'true');
+    } else {
+      newSearchParams.delete('showAll');
+    }
+    newSearchParams.delete('page');
+    router.replace(`/summary?${newSearchParams.toString()}`);
+  }, [router, searchParams]);
 
   const processedData = useMemo(() => {
-    // Group data by item name
     const summary = data.reduce((acc, currentItem) => {
       if (!acc[currentItem.Item]) {
         acc[currentItem.Item] = [];
@@ -114,16 +139,13 @@ const SummaryPageContent = () => {
       return acc;
     }, {});
 
-    // Convert summary object to an array of objects for easier filtering/sorting
     return Object.entries(summary).map(([itemName, itemEntries]) => {
       const sortedEntries = itemEntries.sort((a, b) => new Date(a.Date) - new Date(b.Date));
-      const prices = sortedEntries.map(entry => entry['Unit Price']);
-      const trend = getTrend(prices);
 
       const dailyPrices = {};
-      itemEntries.forEach((row) => {
+      sortedEntries.forEach((row) => {
         const date = row.Date;
-        const price = parseFloat(String(row["Unit Price"]).replace(/,/g, ''));
+        const price = row["Unit Price"];
         if (!dailyPrices[date]) {
           dailyPrices[date] = [];
         }
@@ -131,14 +153,16 @@ const SummaryPageContent = () => {
       });
 
       const chartData = Object.keys(dailyPrices).sort().map((date) => {
-        const prices = dailyPrices[date];
+        const pricesForDate = dailyPrices[date];
         return {
           date,
-          price: calculateAverage(prices),
+          price: calculateMedian(pricesForDate),
         };
       });
 
-      return { itemName, itemEntries: sortedEntries, prices, trend, chartData };
+      const trend = getTrend(chartData);
+
+      return { itemName, itemEntries: sortedEntries, prices: sortedEntries.map(entry => entry['Unit Price']), trend, chartData };
     });
   }, [data]);
 
@@ -152,7 +176,7 @@ const SummaryPageContent = () => {
         if (column === 'Item') {
           return item.itemName.toLowerCase().includes(filterValue);
         }
-        return true; // Other columns not directly filterable in summary
+        return true;
       });
 
       return globalSearchMatch && columnFilterMatch;
@@ -197,14 +221,6 @@ const SummaryPageContent = () => {
     return Math.ceil(filteredAndSortedData.length / itemsPerPage);
   }, [filteredAndSortedData, itemsPerPage]);
 
-  useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(totalPages);
-    } else if (totalPages === 0 && currentPage !== 1) {
-      setCurrentPage(1);
-    }
-  }, [currentPage, totalPages]);
-
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <nav className="bg-gray-800 p-4">
@@ -229,7 +245,7 @@ const SummaryPageContent = () => {
             totalPages={totalPages}
             handlePageChange={handlePageChange}
             showAll={showAll}
-            setShowAll={setShowAll}
+            setShowAll={handleShowAll}
           />
         )}
       </main>

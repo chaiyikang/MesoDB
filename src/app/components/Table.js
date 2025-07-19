@@ -26,7 +26,7 @@ export default function Table({
           <input
             type="text"
             placeholder="Search all columns..."
-            value={searchTerm}
+							defaultValue={searchTerm}
             onChange={handleSearch}
             className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:border-blue-500"
           />

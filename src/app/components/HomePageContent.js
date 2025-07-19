@@ -2,40 +2,36 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Table from "./Table";
 import { storeCsvData, getCsvData } from "../utils/csvStorage";
-import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
+import { useRouter, useSearchParams } from "next/navigation";
+import { useDebouncedCallback } from "use-debounce";
+import Link from "next/link";
 
 export default function HomePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Initialize state from URL parameters
-  const initialSearchTerm = searchParams.get('search') || '';
-  const initialSortColumn = searchParams.get('sortCol') || null;
-  const initialSortDirection = searchParams.get('sortDir') || 'asc';
-  const initialCurrentPage = parseInt(searchParams.get('page') || '1', 10);
-  const initialShowAll = searchParams.get('showAll') === 'true';
-  const initialFilters = useMemo(() => {
+	const [data, setData] = useState([]);
+	const [headers, setHeaders] = useState([]);
+	const [uploadMessage, setUploadMessage] = useState("");
+
+	// Derive state directly from URL parameters
+	const searchTerm = searchParams.get("search") || "";
+	const sortColumn = searchParams.get("sortCol") || null;
+	const sortDirection = searchParams.get("sortDir") || "asc";
+	const currentPage = parseInt(searchParams.get("page") || "1", 10);
+	const showAll = searchParams.get("showAll") === "true";
+
+	const filters = useMemo(() => {
     const filters = {};
     for (const [key, value] of searchParams.entries()) {
-      if (key.startsWith('filter_')) {
-        filters[key.replace('filter_', '')] = value;
+			if (key.startsWith("filter_")) {
+				filters[key.replace("filter_", "")] = value;
       }
     }
     return filters;
   }, [searchParams]);
 
-  const [data, setData] = useState([]);
-  const [headers, setHeaders] = useState([]);
-  const [uploadMessage, setUploadMessage] = useState("");
-
-  const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
-  const [sortColumn, setSortColumn] = useState(initialSortColumn);
-  const [sortDirection, setSortDirection] = useState(initialSortDirection);
-  const [currentPage, setCurrentPage] = useState(initialCurrentPage);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [filters, setFilters] = useState(initialFilters);
-  const [showAll, setShowAll] = useState(initialShowAll);
+	const itemsPerPage = 10;
 
   useEffect(() => {
     const initialData = getCsvData();
@@ -45,30 +41,14 @@ export default function HomePageContent() {
     }
   }, []);
 
-  // Update URL parameters whenever state changes
-  useEffect(() => {
-    const newSearchParams = new URLSearchParams();
-    if (searchTerm) newSearchParams.set('search', searchTerm);
-    if (sortColumn) newSearchParams.set('sortCol', sortColumn);
-    if (sortDirection !== 'asc') newSearchParams.set('sortDir', sortDirection);
-    if (currentPage !== 1) newSearchParams.set('page', currentPage.toString());
-    if (showAll) newSearchParams.set('showAll', 'true');
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) newSearchParams.set(`filter_${key}`, value);
-    });
-
-    const queryString = newSearchParams.toString();
-    router.replace(`/${queryString ? `?${queryString}` : ''}`);
-  }, [searchTerm, sortColumn, sortDirection, currentPage, showAll, filters, router]);
-
-  const handleFileUpload = (e) => {
+	const handleFileUpload = e => {
     const file = e.target.files[0];
     if (!file) {
       return;
     }
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+		reader.onload = event => {
       const csvString = event.target.result;
       const result = storeCsvData(csvString);
 
@@ -86,36 +66,76 @@ export default function HomePageContent() {
     reader.readAsText(file);
   };
 
-  const handleSearch = useCallback((e) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1); // Reset to first page on search
-  }, []);
+	const handleSearch = useDebouncedCallback(e => {
+		const newSearchTerm = e.target.value;
+		const newSearchParams = new URLSearchParams(searchParams.toString());
+		if (newSearchTerm) {
+			newSearchParams.set("search", newSearchTerm);
+		} else {
+			newSearchParams.delete("search");
+		}
+		newSearchParams.delete("page"); // Reset page on search
+		router.replace(`/?${newSearchParams.toString()}`);
+	}, 500);
 
-  const handleSort = useCallback((column) => {
-    setSortColumn(prevCol => prevCol === column ? null : column);
-    setSortDirection(prevDir => (sortColumn === column ? (prevDir === "asc" ? "desc" : "asc") : "asc"));
-    setCurrentPage(1); // Reset to first page on sort
-  }, [sortColumn]);
+	const handleSort = useCallback(
+		column => {
+			const newSearchParams = new URLSearchParams(searchParams.toString());
+			const currentSortColumn = newSearchParams.get("sortCol");
+			const currentSortDirection = newSearchParams.get("sortDir") || "asc";
 
-  const handleFilterChange = useCallback((column, value) => {
-    setFilters((prevFilters) => ({
-      ...prevFilters,
-      [column]: value,
-    }));
-    setCurrentPage(1); // Reset to first page on filter change
-  }, []);
+			let newSortDirection = "asc";
+			if (currentSortColumn === column) {
+				newSortDirection = currentSortDirection === "asc" ? "desc" : "asc";
+			}
 
-  const handlePageChange = useCallback((pageNumber) => {
-    setCurrentPage(pageNumber);
-  }, []);
+			newSearchParams.set("sortCol", column);
+			newSearchParams.set("sortDir", newSortDirection);
+			newSearchParams.delete("page"); // Reset page on sort
+			router.replace(`/?${newSearchParams.toString()}`);
+		},
+		[router, searchParams]
+	);
+
+	const handleFilterChange = useDebouncedCallback((column, value) => {
+		const newSearchParams = new URLSearchParams(searchParams.toString());
+		if (value) {
+			newSearchParams.set(`filter_${column}`, value);
+		} else {
+			newSearchParams.delete(`filter_${column}`);
+		}
+		newSearchParams.delete("page"); // Reset page on filter change
+		router.replace(`/?${newSearchParams.toString()}`);
+	}, 500);
+
+	const handlePageChange = useCallback(
+		pageNumber => {
+			const newSearchParams = new URLSearchParams(searchParams.toString());
+			newSearchParams.set("page", pageNumber.toString());
+			router.replace(`/?${newSearchParams.toString()}`);
+		},
+		[router, searchParams]
+	);
+
+	const handleShowAll = useCallback(
+		checked => {
+			const newSearchParams = new URLSearchParams(searchParams.toString());
+			if (checked) {
+				newSearchParams.set("showAll", "true");
+			} else {
+				newSearchParams.delete("showAll");
+			}
+			newSearchParams.delete("page"); // Reset page on showAll change
+			router.replace(`/?${newSearchParams.toString()}`);
+		},
+		[router, searchParams]
+	);
 
   const filteredAndSortedData = useMemo(() => {
-    let currentFilteredData = data.filter((row) => {
-      const globalSearchMatch = Object.values(row).some((value) =>
-        String(value).toLowerCase().includes(searchTerm.toLowerCase())
-      );
+		let currentFilteredData = data.filter(row => {
+			const globalSearchMatch = Object.values(row).some(value => String(value).toLowerCase().includes(searchTerm.toLowerCase()));
 
-      const columnFilterMatch = Object.keys(filters).every((column) => {
+			const columnFilterMatch = Object.keys(filters).every(column => {
         const filterValue = filters[column].toLowerCase();
         return String(row[column]).toLowerCase().includes(filterValue);
       });
@@ -149,14 +169,6 @@ export default function HomePageContent() {
   const totalPages = useMemo(() => {
     return Math.ceil(filteredAndSortedData.length / itemsPerPage);
   }, [filteredAndSortedData, itemsPerPage]);
-
-  useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(totalPages);
-    } else if (totalPages === 0 && currentPage !== 1) {
-      setCurrentPage(1);
-    }
-  }, [currentPage, totalPages]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -202,7 +214,7 @@ export default function HomePageContent() {
             totalPages={totalPages}
             handlePageChange={handlePageChange}
             showAll={showAll}
-            setShowAll={setShowAll}
+						setShowAll={handleShowAll}
           />
         )}
       </main>

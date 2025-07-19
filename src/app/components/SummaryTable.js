@@ -19,6 +19,12 @@ const SummaryTable = ({
 	showAll,
 	setShowAll,
 }) => {
+	const [hasAnimated, setHasAnimated] = React.useState(false);
+
+	React.useEffect(() => {
+		// Set hasAnimated to true after the initial render to disable animation on subsequent renders
+		setHasAnimated(true);
+	}, []);
 	const getTrend = prices => {
 		if (prices.length < 2) {
 			return "neutral"; // Not enough data to determine trend
@@ -43,7 +49,7 @@ const SummaryTable = ({
 					<input
 						type="text"
 						placeholder="Search items..."
-						value={searchTerm}
+							defaultValue={searchTerm}
 						onChange={handleSearch}
 						className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:border-blue-500"
 					/>
@@ -74,8 +80,8 @@ const SummaryTable = ({
 									</div>
 									<input
 										type="text"
-										placeholder={`Filter Item...`}
-										value={filters["Item"] || ""}
+											placeholder={`Filter...`}
+											defaultValue={filters["Item"] || ""}
 										onChange={e => handleFilterChange("Item", e.target.value)}
 										className="w-full p-1 mt-1 rounded bg-gray-600 text-white border border-gray-500 focus:outline-none focus:border-blue-500 text-sm normal-case"
 										onClick={e => e.stopPropagation()} // Prevent sort when clicking filter input
@@ -100,7 +106,6 @@ const SummaryTable = ({
 								const prices = item.prices;
 								const min = Math.min(...prices);
 								const max = Math.max(...prices);
-								// Add a small padding to the domain to prevent the line from touching the edges
 								const domain = [min - (max - min) * 0.1, max + (max - min) * 0.1];
 
 								return (
